@@ -1,0 +1,21 @@
+# Sistema de Recomendação Baseado em Prioridades
+
+Plataformas como e-commerce ou redes sociais podem usar uma Fibonacci Heap para recomendar itens de forma eficiente, ajustando 
+prioridades dinamicamente com base no interesse do usuário.
+
+Problema: Criar um sistema de recomendação onde os produtos mais relevantes sobem na fila dinamicamente conforme o usuário interage 
+com eles.
+
+# Como rankear?
+
+Podemos manter um ranking dinâmico de itens mais populares com base em interações do usuário (cliques, curtidas, tempo de visualização).
+Cada item pode ser armazenado com um peso (prioridade), que pode ser atualizado quando um usuário interage com ele.
+Usamos decrease-key para aumentar a prioridade do item conforme ele ganha relevância.
+O item mais relevante pode ser recuperado rapidamente com extract-min ou extract-max (dependendo da inversão da prioridade).
+
+Se quisermos recomendar os Top-N itens mais relevantes, podemos usar a Fibonacci Heap para:
+- Inserir novos itens dinamicamente.
+- Remover os menos relevantes quando a heap atinge um tamanho limite.
+- Manter um conjunto de itens recomendados atualizado constantemente.
+
+
