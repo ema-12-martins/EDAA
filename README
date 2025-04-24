@@ -1,0 +1,5 @@
+Nas numericas, fazer 5 clusters cada uma com o mesmo numero de elementos e depois fazer one hot encoded
+
+Nas categoricas, fazer direto one hot encoded.
+
+Dar mais peso a subcategorias e as cores tem 3 niveis de peso, cor igual, cor que combina e com totalmente a toa.

@@ -116,13 +116,21 @@ X_raw = df[columns_to_use].fillna('missing')
 encoder = OneHotEncoder()
 X_encoded = encoder.fit_transform(X_raw).toarray()
 
-# 4. Constrói lista de pontos [(ponto, índice)]
+# 4. Divisão das colunas numéricas (exemplo para a coluna 'price') em 5 casos
+# Vamos supor que você tenha uma coluna numérica chamada 'price' no seu dataframe
+# Você pode substituir 'price' por qualquer coluna numérica relevante que você tenha
+if 'price' in df.columns:
+    df['price_case'] = pd.cut(df['price'], bins=5, labels=[f'Case {i+1}' for i in range(5)])
+    price_encoded = encoder.fit_transform(df[['price_case']]).toarray()
+    X_encoded = np.hstack([X_encoded, price_encoded])
+
+# 5. Constrói lista de pontos [(ponto, índice)]
 points = [(X_encoded[i], i) for i in range(len(X_encoded))]
 
-# 5. Constrói a árvore manualmente
+# 6. Constrói a árvore manualmente
 tree = build_kdtree(points)
 
-# 6. Definindo pesos (dando mais peso à subCategoria e baseCor)
+# 7. Definindo pesos (dando mais peso à subCategoria e baseCor)
 # Primeiro, identifique o número de categorias para subCategory e baseColour
 subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
 baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
@@ -133,12 +141,12 @@ weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
 weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
 weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
 
-# 7. Busca os 5 mais próximos do item 10
+# 8. Busca os 5 mais próximos do item 10
 neighbors = knn_search(tree, X_encoded[15], k=5, weights=weights)
 
-# 8. Mostra resultados
+# 9. Mostra resultados
 print("Vizinhos mais próximos:")
 for dist, idx in neighbors:
-    # print(f"Distância: {dist:.4f}, Índice: {idx}")
-    # print(df.iloc[idx])  # Mostra o item mais próximo
+    #print(f"Distância: {dist:.4f}, Índice: {idx}")
+    #print(df.iloc[idx])  # Mostra o item mais próximo
     print(df.iloc[idx].id)
