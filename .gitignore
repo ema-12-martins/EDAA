@@ -1,0 +1,9 @@
+# Ignorar a pasta de datasets
+archive/
+
+# Ignorar ficheiros temporários do VS Code
+.vscode/
+
+# Ignorar ficheiros Python compilados
+__pycache__/
+*.pyc
