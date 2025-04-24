@@ -3,6 +3,49 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import heapq
 
+# Mapeamento das cores que combinam, para efeito de exemplo, você pode expandir esse mapeamento
+color_combinations = {
+    'Black': ['White', 'Grey', 'Beige', 'Red', 'Silver', 'Gold', 'Navy Blue'],
+    'White': ['Black', 'Grey', 'Beige', 'Red', 'Silver', 'Gold', 'Navy Blue'],
+    'Grey': ['Black', 'White', 'Beige', 'Navy Blue', 'Red', 'Silver'],
+    'Blue': ['Navy Blue', 'White', 'Grey', 'Red', 'Beige', 'Black'],
+    'Red': ['Black', 'White', 'Grey', 'Blue', 'Beige', 'Gold'],
+    'Green': ['Black', 'White', 'Grey', 'Beige', 'Navy Blue'],
+    'Navy Blue': ['Black', 'White', 'Grey', 'Beige', 'Red', 'Silver', 'Gold'],
+    # Adicionar mais combinações de cores conforme necessário
+}
+
+# Função para atribuir peso às cores baseado na cor do produto base
+def calculate_color_weight(base_color, product_color):
+    # Se a cor do produto for nula (na), atribui peso 1
+    if product_color == 'nan' or base_color == 'nan':
+        return 1
+    
+    # Caso a cor seja a mesma
+    if base_color == product_color:
+        return 2  # Peso alto para cor exata
+    
+    # Caso as cores combinam de acordo com o mapeamento
+    if product_color in color_combinations.get(base_color, []):
+        return 1.5  # Peso intermediário para cores que combinam
+    
+    # Caso não haja combinação
+    return 1  # Peso 1 para outras cores
+
+# Função para atribuir pesos a todas as cores de um produto com base na cor base
+def assign_weights_based_on_color(df, base_color_column='baseColour'):
+    weights = []
+    
+    # Itera sobre o dataframe para calcular os pesos
+    for _, row in df.iterrows():
+        product_color = row[base_color_column]
+        weight = calculate_color_weight(base_color_column, product_color)
+        weights.append(weight)
+        
+    return np.array(weights)
+
+# ======================== CLASSE KDTREE ==========================
+
 # Classe para representar um nó da KDTree
 class KDNode:
     def __init__(self, point, index, left=None, right=None):
@@ -60,7 +103,6 @@ def knn_search(root, target, k, weights=None, depth=0, heap=None):
 
     return sorted([(-d, idx) for d, idx, _ in heap])
 
-
 # ======================== USO =========================
 
 # 1. Lê o CSV
@@ -92,7 +134,7 @@ weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  
 weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
 
 # 7. Busca os 5 mais próximos do item 10
-neighbors = knn_search(tree, X_encoded[10], k=5, weights=weights)
+neighbors = knn_search(tree, X_encoded[15], k=5, weights=weights)
 
 # 8. Mostra resultados
 print("Vizinhos mais próximos:")
