@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
+import heapq
 
 # Classe para representar um nó da KDTree
 class KDNode:
@@ -27,17 +28,23 @@ def build_kdtree(points, depth=0):
         right=build_kdtree(points[median + 1:], depth + 1)
     )
 
-# Função de busca KNN
-def knn_search(root, target, k, depth=0, heap=None):
-    import heapq
+# Função de busca KNN com distância Euclidiana ponderada
+def knn_search(root, target, k, weights=None, depth=0, heap=None):
     if heap is None:
         heap = []
+        
+    if weights is None:
+        weights = np.ones(len(target))  # Se não for passado, todos os pesos são 1 (sem peso extra)
 
     if root is None:
         return heap
 
     axis = depth % len(target)
-    dist = np.linalg.norm(np.array(target) - np.array(root.point))
+    
+    # Calcula a distância Euclidiana ponderada
+    dist = np.sqrt(np.sum(weights * (np.array(target) - np.array(root.point))**2))
+    
+    # Adiciona o nó ao heap com a distância negativa (para que o heap funcione como uma fila de prioridade)
     heapq.heappush(heap, (-dist, root.index, root.point))
 
     if len(heap) > k:
@@ -46,10 +53,10 @@ def knn_search(root, target, k, depth=0, heap=None):
     diff = target[axis] - root.point[axis]
     close, away = (root.left, root.right) if diff < 0 else (root.right, root.left)
 
-    knn_search(close, target, k, depth + 1, heap)
+    knn_search(close, target, k, weights, depth + 1, heap)
 
     if len(heap) < k or abs(diff) < -heap[0][0]:
-        knn_search(away, target, k, depth + 1, heap)
+        knn_search(away, target, k, weights, depth + 1, heap)
 
     return sorted([(-d, idx) for d, idx, _ in heap])
 
@@ -73,11 +80,23 @@ points = [(X_encoded[i], i) for i in range(len(X_encoded))]
 # 5. Constrói a árvore manualmente
 tree = build_kdtree(points)
 
-# 6. Busca os 5 mais próximos do primeiro item
-neighbors = knn_search(tree, X_encoded[0], k=5)
+# 6. Definindo pesos (dando mais peso à subCategoria e baseCor)
+# Primeiro, identifique o número de categorias para subCategory e baseColour
+subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
+baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
 
-# 7. Mostra resultados
+weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
+
+# Atribuindo mais peso para subCategory e baseColour (peso 2)
+weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
+weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
+
+# 7. Busca os 5 mais próximos do item 10
+neighbors = knn_search(tree, X_encoded[10], k=5, weights=weights)
+
+# 8. Mostra resultados
 print("Vizinhos mais próximos:")
 for dist, idx in neighbors:
-    print(f"Distância: {dist:.4f}, Índice: {idx}")
-    print(df.iloc[idx])
+    # print(f"Distância: {dist:.4f}, Índice: {idx}")
+    # print(df.iloc[idx])  # Mostra o item mais próximo
+    print(df.iloc[idx].id)
