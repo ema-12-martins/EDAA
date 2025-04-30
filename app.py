@@ -4,7 +4,7 @@ from kdtree import get_recommendations
 
 app = Flask(__name__)
 
-IMAGES_PER_PAGE = 100
+IMAGES_PER_PAGE = 5
 
 @app.route('/')
 @app.route('/page/<int:page>')
