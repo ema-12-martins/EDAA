@@ -98,13 +98,23 @@
             fetch(`/recommendations/${image}`)
                 .then(res => res.json())
                 .then(products => {
+                    const recommendationsDiv = document.getElementById('recommendations');
                     recommendationsDiv.innerHTML = '';
                     products.forEach(prod => {
                         const imgElem = document.createElement('img');
                         imgElem.src = `/static/images/${prod}`;
+                        imgElem.alt = prod;
+                        imgElem.style.cursor = 'pointer';
+
+                        // Optional: allow clicking a recommended image to view it big
+                        imgElem.addEventListener('click', () => {
+                            document.getElementById('largeImage').src = `/static/images/${prod}`;
+                            fetchRecommendations(prod);
+                        });
+
                         recommendationsDiv.appendChild(imgElem);
                     });
-                });
+            });
         }
     </script>
 </body>
