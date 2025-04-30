@@ -106,56 +106,68 @@ def knn_search(root, target, k, weights=None, depth=0, heap=None):
 # ======================== USO =========================
 
 #Numero da linha do produto a procurar
-num_produto = 1100
+def get_recommendations(id):
 
-# 1. Lê o CSV
-df = pd.read_csv('./archive/fashion-dataset/styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
-print("Produto original a procurar:")
-print(df.iloc[num_produto].id)
+    # 1. Lê o CSV
+    df = pd.read_csv('./archive/fashion-dataset/styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
+    product_index = 0
+    try:
+        # Find the index of the row where the 'id' column matches the given product_id
+        product_index = df[df['id'] == id].index[0]
+    except IndexError:
+        print(f"Product ID {id} not found in the dataset.")
+    
+    print("Produto original a procurar:")
+    print(df.iloc[product_index].id)
 
-# 2. Seleciona colunas categóricas
-columns_to_use = ['gender', 'masterCategory', 'subCategory', 'baseColour', 'season', 'usage']
-X_raw = df[columns_to_use].fillna('missing')
+    # 2. Seleciona colunas categóricas
+    columns_to_use = ['gender', 'masterCategory', 'subCategory', 'baseColour', 'season', 'usage']
+    X_raw = df[columns_to_use].fillna('missing')
 
-# 3. Codifica com OneHotEncoder
-encoder = OneHotEncoder()
-X_encoded = encoder.fit_transform(X_raw).toarray()
+    # 3. Codifica com OneHotEncoder
+    encoder = OneHotEncoder()
+    X_encoded = encoder.fit_transform(X_raw).toarray()
 
-# 4. Divisão das colunas numéricas (exemplo para a coluna 'price') em 5 casos
-# Vamos supor que você tenha uma coluna numérica chamada 'price' no seu dataframe
-# Você pode substituir 'price' por qualquer coluna numérica relevante que você tenha
-if 'price' in df.columns:
-    df['price_case'] = pd.cut(df['price'], bins=5, labels=[f'Case {i+1}' for i in range(5)])
-    price_encoded = encoder.fit_transform(df[['price_case']]).toarray()
-    X_encoded = np.hstack([X_encoded, price_encoded])
+    # 4. Divisão das colunas numéricas (exemplo para a coluna 'price') em 5 casos
+    # Vamos supor que você tenha uma coluna numérica chamada 'price' no seu dataframe
+    # Você pode substituir 'price' por qualquer coluna numérica relevante que você tenha
+    if 'price' in df.columns:
+        df['price_case'] = pd.cut(df['price'], bins=5, labels=[f'Case {i+1}' for i in range(5)])
+        price_encoded = encoder.fit_transform(df[['price_case']]).toarray()
+        X_encoded = np.hstack([X_encoded, price_encoded])
 
-# 5. Constrói lista de pontos [(ponto, índice)]
-points = [(X_encoded[i], i) for i in range(len(X_encoded))]
+    # 5. Constrói lista de pontos [(ponto, índice)]
+    points = [(X_encoded[i], i) for i in range(len(X_encoded))]
 
-# 6. Constrói a árvore manualmente
-tree = build_kdtree(points)
+    # 6. Constrói a árvore manualmente
+    tree = build_kdtree(points)
 
-# 7. Definindo pesos (dando mais peso à subCategoria e baseCor)
-# Primeiro, identifique o número de categorias para subCategory e baseColour
-subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
-baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
-usage_start = (
-    len(encoder.categories_[0]) +  len(encoder.categories_[1]) + len(encoder.categories_[2]) + len(encoder.categories_[3]) + 
-    len(encoder.categories_[4]))
+    # 7. Definindo pesos (dando mais peso à subCategoria e baseCor)
+    # Primeiro, identifique o número de categorias para subCategory e baseColour
+    subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
+    baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
+    usage_start = (
+        len(encoder.categories_[0]) +  len(encoder.categories_[1]) + len(encoder.categories_[2]) + len(encoder.categories_[3]) + 
+        len(encoder.categories_[4]))
 
-weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
+    weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
 
-# Atribuindo mais peso para subCategory e baseColour (peso 2)
-weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
-weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
-weights[usage_start:usage_start + len(encoder.categories_[5])] = 2 # Peso 2 para o usage
+    # Atribuindo mais peso para subCategory e baseColour (peso 2)
+    weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
+    weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
+    weights[usage_start:usage_start + len(encoder.categories_[5])] = 2 # Peso 2 para o usage
 
-# 8. Busca os 5 mais próximos do item 10
-neighbors = knn_search(tree, X_encoded[num_produto], k=5, weights=weights)
+    # 8. Busca os 5 mais próximos do item 10
+    neighbors = knn_search(tree, X_encoded[product_index], k=5, weights=weights)
 
-# 9. Mostra resultados
-print("Vizinhos mais próximos:")
-for dist, idx in neighbors:
-    #print(f"Distância: {dist:.4f}, Índice: {idx}")
-    #print(df.iloc[idx])  # Mostra o item mais próximo
-    print(df.iloc[idx].id)
+    # 9. Mostra resultados
+    print("Vizinhos mais próximos:")
+    for dist, idx in neighbors:
+        #print(f"Distância: {dist:.4f}, Índice: {idx}")
+        #print(df.iloc[idx])  # Mostra o item mais próximo
+        print(df.iloc[idx].id)
+
+    id_list = df.iloc[[idx for _, idx in neighbors]].id.tolist()
+
+    recommended_products = [f'{id}.jpg' for id in id_list]    
+    return recommended_products
