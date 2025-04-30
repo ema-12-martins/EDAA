@@ -105,8 +105,13 @@ def knn_search(root, target, k, weights=None, depth=0, heap=None):
 
 # ======================== USO =========================
 
+#Numero da linha do produto a procurar
+num_produto = 1100
+
 # 1. Lê o CSV
 df = pd.read_csv('./archive/fashion-dataset/styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
+print("Produto original a procurar:")
+print(df.iloc[num_produto].id)
 
 # 2. Seleciona colunas categóricas
 columns_to_use = ['gender', 'masterCategory', 'subCategory', 'baseColour', 'season', 'usage']
@@ -142,7 +147,7 @@ weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  
 weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
 
 # 8. Busca os 5 mais próximos do item 10
-neighbors = knn_search(tree, X_encoded[15], k=5, weights=weights)
+neighbors = knn_search(tree, X_encoded[num_produto], k=5, weights=weights)
 
 # 9. Mostra resultados
 print("Vizinhos mais próximos:")
