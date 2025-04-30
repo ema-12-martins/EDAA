@@ -139,12 +139,16 @@ tree = build_kdtree(points)
 # Primeiro, identifique o número de categorias para subCategory e baseColour
 subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
 baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
+usage_start = (
+    len(encoder.categories_[0]) +  len(encoder.categories_[1]) + len(encoder.categories_[2]) + len(encoder.categories_[3]) + 
+    len(encoder.categories_[4]))
 
 weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
 
 # Atribuindo mais peso para subCategory e baseColour (peso 2)
 weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
 weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
+weights[usage_start:usage_start + len(encoder.categories_[5])] = 2 # Peso 2 para o usage
 
 # 8. Busca os 5 mais próximos do item 10
 neighbors = knn_search(tree, X_encoded[num_produto], k=5, weights=weights)
