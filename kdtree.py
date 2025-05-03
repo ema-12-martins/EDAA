@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import heapq
-
+import os
 # Mapeamento das cores que combinam, para efeito de exemplo, você pode expandir esse mapeamento
 color_combinations = {
     'Black': ['White', 'Grey', 'Beige', 'Red', 'Silver', 'Gold', 'Navy Blue'],
@@ -109,15 +109,20 @@ def knn_search(root, target, k, weights=None, depth=0, heap=None):
 def get_recommendations(id):
 
     # 1. Lê o CSV
-    df = pd.read_csv('./archive/fashion-dataset/styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
+    df = pd.read_csv('styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
+
     product_index = 0
+    # cut .jpg from id
+    id_aux = id.split('.')[0]
+
     try:
-        # Find the index of the row where the 'id' column matches the given product_id
-        product_index = df[df['id'] == id].index[0]
+    # Find the index of the row where the 'id' column matches the given product_id
+        product_index = df[df['id'] == int(id_aux)].index[0]
     except IndexError:
-        print(f"Product ID {id} not found in the dataset.")
-    
-    print("Produto original a procurar:")
+        print(f"Product ID {id_aux} not found in the dataset.")
+        return []
+        
+    print("Produto original a procurar:")   
     print(df.iloc[product_index].id)
 
     # 2. Seleciona colunas categóricas
