@@ -1,6 +1,8 @@
 # Ignorar a pasta de datasets
 archive/
 
+fashion-dataset/
+
 static/
 
 dataset/

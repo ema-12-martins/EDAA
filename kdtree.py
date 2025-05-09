@@ -103,76 +103,134 @@ def knn_search(root, target, k, weights=None, depth=0, heap=None):
 
     return sorted([(-d, idx) for d, idx, _ in heap])
 
+import pandas as pd
+import json
+import os
+
+def join_csv_with_json(csv_path, json_dir, output_csv_path):
+    df = pd.read_csv(csv_path, quotechar='"', on_bad_lines='skip', encoding='utf-8')
+
+    # Novas colunas a adicionar
+    df['price'] = None
+    df['discountedPrice'] = None
+    df['brandName'] = None
+    df['ageGroup'] = None
+    df['gender'] = None
+
+    for index, row in df.iterrows():
+        product_id = str(row['id'])
+        json_path = os.path.join(json_dir, f"{product_id}.json")
+        
+        if os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                    product_data = data.get('data', {})
+                    df.at[index, 'price'] = product_data.get('price')
+                    df.at[index, 'discountedPrice'] = product_data.get('discountedPrice')
+                    df.at[index, 'brandName'] = product_data.get('brandName')
+                    df.at[index, 'ageGroup'] = product_data.get('ageGroup')
+                    df.at[index, 'gender'] = product_data.get('gender')
+                except json.JSONDecodeError:
+                    print(f"Erro ao decodificar JSON para o ID {product_id}")
+        else:
+            print(f"Arquivo JSON não encontrado para ID {product_id}")
+
+    df.to_csv(output_csv_path, index=False, encoding='utf-8')
+    print(f"Arquivo enriquecido salvo em: {output_csv_path}")
+
+def add_has_discount_column(file_path):
+    df = pd.read_csv(file_path, quotechar='"', on_bad_lines='skip', encoding='utf-8')
+
+    if 'price' in df.columns and 'discountedPrice' in df.columns:
+        df['has_discount'] = (df['price'] != df['discountedPrice']).astype(int)
+        df.to_csv(file_path, index=False) 
+        print(f"Coluna 'has_discount' adicionada com sucesso em '{file_path}'.")
+    else:
+        print("As colunas 'price' e/ou 'discountedPrice' não estão presentes no DataFrame.")
+
+
+
 # ======================== USO =========================
 
 #Numero da linha do produto a procurar
 def get_recommendations(id):
+    import pandas as pd
+    import numpy as np
+    from sklearn.preprocessing import OneHotEncoder
+    from kdtree import build_kdtree, knn_search  # Certifica-te que estas funções estão definidas
 
     # 1. Lê o CSV
-    df = pd.read_csv('styles.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
+    df = pd.read_csv('styles_joined.csv', quotechar='"', on_bad_lines='skip', encoding='utf-8')
 
-    product_index = 0
-    # cut .jpg from id
+    # Extrai o ID (remove o ".json")
     id_aux = id.split('.')[0]
 
     try:
-    # Find the index of the row where the 'id' column matches the given product_id
         product_index = df[df['id'] == int(id_aux)].index[0]
     except IndexError:
         print(f"Product ID {id_aux} not found in the dataset.")
         return []
         
-    print("Produto original a procurar:")   
+    print("Produto original a procurar:")
     print(df.iloc[product_index].id)
 
-    # 2. Seleciona colunas categóricas
-    columns_to_use = ['gender', 'masterCategory', 'subCategory', 'baseColour', 'season', 'usage']
+    # 2. Colunas categóricas
+    columns_to_use = ['gender', 'masterCategory', 'subCategory', 'articleType',
+                      'baseColour', 'season', 'usage', 'brandName', 'ageGroup']
     X_raw = df[columns_to_use].fillna('missing')
 
-    # 3. Codifica com OneHotEncoder
-    encoder = OneHotEncoder()
-    X_encoded = encoder.fit_transform(X_raw).toarray()
+    # 3. Codifica as categorias
+    encoder_cat = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    X_cat = encoder_cat.fit_transform(X_raw)
 
-    # 4. Divisão das colunas numéricas (exemplo para a coluna 'price') em 5 casos
-    # Vamos supor que você tenha uma coluna numérica chamada 'price' no seu dataframe
-    # Você pode substituir 'price' por qualquer coluna numérica relevante que você tenha
+    # 4. Codifica a coluna 'price' em faixas
     if 'price' in df.columns:
         df['price_case'] = pd.cut(df['price'], bins=5, labels=[f'Case {i+1}' for i in range(5)])
-        price_encoded = encoder.fit_transform(df[['price_case']]).toarray()
-        X_encoded = np.hstack([X_encoded, price_encoded])
+        encoder_price = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+        X_price = encoder_price.fit_transform(df[['price_case']])
+        X_encoded = np.hstack([X_cat, X_price])
+    else:
+        X_encoded = X_cat
 
     # 5. Constrói lista de pontos [(ponto, índice)]
     points = [(X_encoded[i], i) for i in range(len(X_encoded))]
 
-    # 6. Constrói a árvore manualmente
+    # 6. Constrói a árvore
     tree = build_kdtree(points)
 
-    # 7. Definindo pesos (dando mais peso à subCategoria e baseCor)
-    # Primeiro, identifique o número de categorias para subCategory e baseColour
-    subCategory_start = X_encoded.shape[1] - len(encoder.categories_[2])  # SubCategory começa depois das duas primeiras colunas
-    baseColour_start = subCategory_start + len(encoder.categories_[2])  # BaseColour começa depois da subCategory
-    usage_start = (
-        len(encoder.categories_[0]) +  len(encoder.categories_[1]) + len(encoder.categories_[2]) + len(encoder.categories_[3]) + 
-        len(encoder.categories_[4]))
+    # 7. Calcula índices de início de cada coluna
+    starts = [0]
+    for cats in encoder_cat.categories_[:-1]:
+        starts.append(starts[-1] + len(cats))
+    col_start_dict = dict(zip(columns_to_use, starts))
 
-    weights = np.ones(X_encoded.shape[1])  # Inicia todos com peso 1
+    # 8. Define pesos (peso 2 para subCategory, baseColour, usage)
+    weights = np.ones(X_encoded.shape[1])
+    for col in ['subCategory', 'baseColour', 'usage']:
+        start = col_start_dict[col]
+        length = len(encoder_cat.categories_[columns_to_use.index(col)])
+        weights[start:start+length] = 2
+        
+    # 8b. Mais peso para produtos com promoção
+    weights[-1] = 2
 
-    # Atribuindo mais peso para subCategory e baseColour (peso 2)
-    weights[subCategory_start:subCategory_start + len(encoder.categories_[2])] = 2  # Peso 2 para subCategory
-    weights[baseColour_start:baseColour_start + len(encoder.categories_[3])] = 2  # Peso 2 para baseColour
-    weights[usage_start:usage_start + len(encoder.categories_[5])] = 2 # Peso 2 para o usage
-
-    # 8. Busca os 5 mais próximos do item 10
+    # 9. Busca os 5 vizinhos mais próximos
     neighbors = knn_search(tree, X_encoded[product_index], k=5, weights=weights)
 
-    # 9. Mostra resultados
+    # 10. Mostra resultados
     print("Vizinhos mais próximos:")
     for dist, idx in neighbors:
-        #print(f"Distância: {dist:.4f}, Índice: {idx}")
-        #print(df.iloc[idx])  # Mostra o item mais próximo
         print(df.iloc[idx].id)
 
     id_list = df.iloc[[idx for _, idx in neighbors]].id.tolist()
-
-    recommended_products = [f'{id}.jpg' for id in id_list]    
+    recommended_products = [f'{id}.jpg' for id in id_list]
     return recommended_products
+
+if __name__ == "__main__":
+    # Código para testar individualmente esse módulo
+    get_recommendations("1163.json")
+
+#RODAR APENAS 1x, para JUNTAR OS DATASETS
+#join_csv_with_json('./fashion-dataset/styles.csv', './fashion-dataset/styles', 'styles_joined.csv') 
+#add_has_discount_column('styles_joined.csv'
