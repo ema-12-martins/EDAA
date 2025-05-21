@@ -57,9 +57,10 @@
     <body>
         <div class="grid-container">
             {% for image in images %}
-            <div class="grid-item" data-image="{{ image }}">
-                <img src="{{ url_for('static', filename='images/' + image) }}" alt="Clothing item">
+            <div class="grid-item" data-image="{{ image.filename }}" data-id="{{ image.id }}">
+                <img src="{{ url_for('static', filename='images/' + image.filename) }}" alt="Clothing item">
             </div>
+            <div style="text-align:center; font-size: 14px; padding-top: 5px;">ID: {{ image.id }}</div>
             {% endfor %}
         </div>
 
@@ -103,27 +104,37 @@
             window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; };
 
             function fetchRecommendations(image) {
-                fetch(`/recommendations/${image}`)
-                    .then(res => res.json())
-                    .then(products => {
-                        const recommendationsDiv = document.getElementById('recommendations');
-                        recommendationsDiv.innerHTML = '';
-                        products.forEach(prod => {
-                            const imgElem = document.createElement('img');
-                            imgElem.src = `/static/images/${prod}`;
-                            imgElem.alt = prod;
-                            imgElem.style.cursor = 'pointer';
+            fetch(`/recommendations/${image}`)
+                .then(res => res.json())
+                .then(products => {
+                    const recommendationsDiv = document.getElementById('recommendations');
+                    recommendationsDiv.innerHTML = '';
+                    products.forEach(prod => {
+                        const wrapper = document.createElement('div');
+                        wrapper.style.textAlign = 'center';
+                        wrapper.style.width = '100px';
 
-                            // Optional: allow clicking a recommended image to view it big
-                            imgElem.addEventListener('click', () => {
-                                document.getElementById('largeImage').src = `/static/images/${prod}`;
-                                fetchRecommendations(prod);
-                            });
+                        const imgElem = document.createElement('img');
+                        imgElem.src = `/static/images/${prod}`;
+                        imgElem.alt = prod;
+                        imgElem.style.cursor = 'pointer';
 
-                            recommendationsDiv.appendChild(imgElem);
+                        const idLabel = document.createElement('div');
+                        idLabel.style.fontSize = '12px';
+                        idLabel.innerText = `ID: ${prod.split('.')[0]}`;
+
+                        imgElem.addEventListener('click', () => {
+                            document.getElementById('largeImage').src = `/static/images/${prod}`;
+                            fetchRecommendations(prod);
                         });
+
+                        wrapper.appendChild(imgElem);
+                        wrapper.appendChild(idLabel);
+                        recommendationsDiv.appendChild(wrapper);
+                    });
                 });
             }
+
         </script>
     </body>
     </html
