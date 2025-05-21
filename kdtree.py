@@ -227,9 +227,9 @@ def get_recommendations(id):
     recommended_products = [f'{id}.jpg' for id in id_list]
     return recommended_products
 
-if __name__ == "__main__":
-    # Código para testar individualmente esse módulo
-    get_recommendations("1163.json")
+# if __name__ == "__main__":
+    #Código para testar individualmente esse módulo
+    # get_recommendations("1163.json")
 
 #RODAR APENAS 1x, para JUNTAR OS DATASETS
 #join_csv_with_json('./fashion-dataset/styles.csv', './fashion-dataset/styles', 'styles_joined.csv') 
